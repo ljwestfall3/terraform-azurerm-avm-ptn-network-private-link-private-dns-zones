@@ -1,50 +1,55 @@
-resource "azurerm_resource_group" "this" {
-  count = var.resource_group_creation_enabled ? 1 : 0
+module "avm_interfaces" {
+  source  = "git::https://avm.mirror.invalid/terraform-azure-avm-utl-interfaces.git?ref=v0.5.0-local"
 
-  location = var.location
-  name     = var.resource_group_name
-  tags     = var.tags
+  enable_telemetry                 = var.enable_telemetry
+  lock                             = var.lock
+  role_assignment_definition_scope = local.resource_group_id_string
+  role_assignments                 = var.resource_group_role_assignments
 }
 
-data "azurerm_client_config" "current" {}
-
 module "regions" {
-  source  = "git::https://avm.mirror.invalid/terraform-azurerm-avm-utl-regions.git?ref=v0.5.0-local"
+  source  = "git::https://avm.mirror.invalid/terraform-azurerm-avm-utl-regions.git?ref=v0.9.2-local"
 
-  enable_telemetry   = var.enable_telemetry
-  recommended_filter = false
+  enable_telemetry = var.enable_telemetry
 }
 
 module "avm_res_network_privatednszone" {
-  source   = "git::https://avm.mirror.invalid/terraform-azurerm-avm-res-network-privatednszone.git?ref=v0.3.0-local"
-  for_each = local.combined_private_link_private_dns_zones_replaced_with_vnets_to_link
+  source   = "git::https://avm.mirror.invalid/terraform-azurerm-avm-res-network-privatednszone.git?ref=v0.4.3-local"
+  for_each = local.private_link_private_dns_zones_final
 
   domain_name           = each.value.zone_name
-  resource_group_name   = var.resource_group_creation_enabled ? azurerm_resource_group.this[0].name : var.resource_group_name
+  parent_id             = local.resource_group_id_string
   enable_telemetry      = var.enable_telemetry
   tags                  = var.tags
   timeouts              = var.timeouts
-  virtual_network_links = each.value.vnets
+  virtual_network_links = each.value.virtual_network_links
 }
 
-resource "azurerm_management_lock" "this" {
+resource "azapi_resource" "lock" {
   count = var.lock != null ? 1 : 0
 
-  lock_level = var.lock.kind
-  name       = coalesce(var.lock.name, "lock-${var.lock.kind}")
-  scope      = local.resource_group_resource_id
-  notes      = var.lock.kind == "CanNotDelete" ? "Cannot delete the resource or its child resources." : "Cannot delete or modify the resource or its child resources."
+  name           = coalesce(module.avm_interfaces.lock_azapi.name, "lock-${local.resource_group_name}")
+  parent_id      = local.resource_group_id_string
+  type           = module.avm_interfaces.lock_azapi.type
+  body           = module.avm_interfaces.lock_azapi.body
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }
 
-resource "azurerm_role_assignment" "this" {
-  for_each = var.resource_group_role_assignments
+resource "azapi_resource" "role_assignments" {
+  for_each = module.avm_interfaces.role_assignments_azapi
 
-  principal_id                           = each.value.principal_id
-  scope                                  = local.resource_group_resource_id
-  condition                              = each.value.condition
-  condition_version                      = each.value.condition_version
-  delegated_managed_identity_resource_id = each.value.delegated_managed_identity_resource_id
-  role_definition_id                     = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? each.value.role_definition_id_or_name : null
-  role_definition_name                   = strcontains(lower(each.value.role_definition_id_or_name), lower(local.role_definition_resource_substring)) ? null : each.value.role_definition_id_or_name
-  skip_service_principal_aad_check       = each.value.skip_service_principal_aad_check
+  name           = each.value.name
+  parent_id      = local.resource_group_id_string
+  type           = each.value.type
+  body           = each.value.body
+  create_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  delete_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  read_headers   = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
+  update_headers = var.enable_telemetry ? { "User-Agent" : local.avm_azapi_header } : null
 }
+
+
+
