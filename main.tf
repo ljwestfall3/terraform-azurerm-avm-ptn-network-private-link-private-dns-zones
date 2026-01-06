@@ -8,7 +8,7 @@ module "avm_interfaces" {
 }
 
 module "regions" {
-  source  = "git::https://avm.mirror.invalid/terraform-azurerm-avm-utl-regions.git?ref=v0.9.2-local"
+  source  = "git::https://avm.mirror.invalid/terraform-azurerm-avm-utl-regions.git?ref=v0.9.3-local"
 
   enable_telemetry = var.enable_telemetry
 }
