@@ -8,9 +8,10 @@ module "avm_interfaces" {
 }
 
 module "regions" {
-  source  = "git::https://avm.mirror.invalid/terraform-azurerm-avm-utl-regions.git?ref=v0.9.3-local"
+  source  = "git::https://avm.mirror.invalid/terraform-azurerm-avm-utl-regions.git?ref=v0.12.0-local"
 
   enable_telemetry = var.enable_telemetry
+  use_cached_data  = false
 }
 
 module "avm_res_network_privatednszone" {
